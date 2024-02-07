@@ -4,6 +4,7 @@ import io.github.gaming32.syntaxtweaker.tweaks.builtin.NumberBaseTweak
 
 class TweakRegistry {
     companion object {
+        val RESERVED_KEYS = setOf("flag", "package", "class", "field", "method")
         val DEFAULT = TweakRegistry().apply { registerDefaults() }
 
         fun TweakRegistry.registerDefaults() {
@@ -14,6 +15,9 @@ class TweakRegistry {
     private val registry = mutableMapOf<String, TweakParser<*>>()
 
     fun register(key: String, parser: TweakParser<*>, replace: Boolean = false) {
+        if (key in RESERVED_KEYS) {
+            throw IllegalArgumentException("Reserved tweak key: $key")
+        }
         if (replace) {
             registry[key] = parser
         } else if (registry.putIfAbsent(key, parser) != null) {
@@ -25,7 +29,7 @@ class TweakRegistry {
 
     val keys: Set<String> get() = registry.keys
 
-    fun parseLine(context: ParseContext, line: List<String>): SyntaxTweak? {
+    fun parseLine(context: TweakParser.ParseContext, line: List<String>): SyntaxTweak? {
         if (line.isEmpty()) {
             throw IllegalArgumentException("Tweak line cannot be empty")
         }

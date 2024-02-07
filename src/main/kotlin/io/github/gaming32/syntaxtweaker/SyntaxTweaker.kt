@@ -18,11 +18,13 @@ import org.jetbrains.kotlin.com.intellij.openapi.vfs.StandardFileSystems
 import org.jetbrains.kotlin.com.intellij.openapi.vfs.VirtualFileManager
 import org.jetbrains.kotlin.com.intellij.openapi.vfs.local.CoreLocalFileSystem
 import org.jetbrains.kotlin.com.intellij.psi.JavaRecursiveElementVisitor
+import org.jetbrains.kotlin.com.intellij.psi.PsiClass
 import org.jetbrains.kotlin.com.intellij.psi.PsiField
 import org.jetbrains.kotlin.com.intellij.psi.PsiFile
 import org.jetbrains.kotlin.com.intellij.psi.PsiJavaCodeReferenceElement
 import org.jetbrains.kotlin.com.intellij.psi.PsiManager
 import org.jetbrains.kotlin.com.intellij.psi.PsiMethod
+import org.jetbrains.kotlin.com.intellij.psi.PsiPackage
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
@@ -116,8 +118,10 @@ open class SyntaxTweaker(
             file.accept(object : JavaRecursiveElementVisitor() {
                 override fun visitReferenceElement(reference: PsiJavaCodeReferenceElement) {
                     when (val resolved = reference.resolve()) {
-                        is PsiField -> tweaks.applyFieldReference(reference, resolved, this@FileTweaker)
                         is PsiMethod -> tweaks.applyMethodReference(reference, resolved, this@FileTweaker)
+                        is PsiField -> tweaks.applyFieldReference(reference, resolved, this@FileTweaker)
+                        is PsiClass -> tweaks.applyClassReference(reference, resolved, this@FileTweaker)
+                        is PsiPackage -> tweaks.applyPackageReference(reference, resolved, this@FileTweaker)
                     }
                     super.visitReferenceElement(reference)
                 }

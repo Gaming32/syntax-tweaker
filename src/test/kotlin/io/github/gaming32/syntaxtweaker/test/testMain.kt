@@ -11,20 +11,23 @@ fun main() {
     val testClass = "io.github.gaming32.syntaxtweaker.test.TestClass"
     val shouldBeHex = MemberReference("shouldBeHex", "I")
     val shouldBeOctal = MemberReference("shouldBeOctal", "(I)V")
-    val tweaks = TweakSet(mapOf(
-        testClass to ClassTweaks(
-            testClass,
-            listOf(),
-            mapOf(
-                shouldBeHex to listOf(
-                    NumberBaseTweak(shouldBeHex, NumberBaseTweak.NumberBase.HEX, true)
-                ),
-                shouldBeOctal to listOf(
-                    NumberBaseTweak(shouldBeOctal, NumberBaseTweak.NumberBase.OCT, true, 0)
+    val tweaks = TweakSet(
+        mapOf(),
+        mapOf(
+            testClass to ClassTweaks(
+                testClass,
+                listOf(),
+                mapOf(
+                    shouldBeHex to listOf(
+                        NumberBaseTweak(shouldBeHex, NumberBaseTweak.NumberBase.HEX, true)
+                    ),
+                    shouldBeOctal to listOf(
+                        NumberBaseTweak(shouldBeOctal, NumberBaseTweak.NumberBase.OCT, true, 0)
+                    )
                 )
             )
         )
-    ))
+    )
 
     SyntaxTweaker(tweaks).tweak(listOf(
         File("src/test/java/${testClass.replace('.', '/')}.java")

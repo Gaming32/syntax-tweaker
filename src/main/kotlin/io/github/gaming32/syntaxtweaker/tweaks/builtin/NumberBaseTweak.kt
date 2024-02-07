@@ -3,7 +3,6 @@ package io.github.gaming32.syntaxtweaker.tweaks.builtin
 import io.github.gaming32.syntaxtweaker.TweakTarget
 import io.github.gaming32.syntaxtweaker.data.MemberReference
 import io.github.gaming32.syntaxtweaker.data.MemberReference.Companion.toMemberReference
-import io.github.gaming32.syntaxtweaker.tweaks.ParseContext
 import io.github.gaming32.syntaxtweaker.tweaks.SyntaxTweak
 import io.github.gaming32.syntaxtweaker.tweaks.TweakParser
 import org.jetbrains.kotlin.com.intellij.lang.jvm.JvmModifier
@@ -23,6 +22,7 @@ import org.jetbrains.kotlin.com.intellij.psi.PsiQualifiedReferenceElement
 import org.jetbrains.kotlin.com.intellij.psi.PsiReferenceExpression
 import org.jetbrains.kotlin.com.intellij.psi.PsiVariable
 import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
+import org.jetbrains.kotlin.utils.addToStdlib.enumSetOf
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 
 class NumberBaseTweak(
@@ -41,7 +41,7 @@ class NumberBaseTweak(
     companion object : TweakParser<NumberBaseTweak> {
         const val ID = "number-base"
 
-        override fun ParseContext.parse(): NumberBaseTweak {
+        override fun TweakParser.ParseContext.parse(): NumberBaseTweak {
             if (args.isEmpty()) {
                 throw IllegalArgumentException("Missing targetBase")
             }
@@ -51,8 +51,8 @@ class NumberBaseTweak(
             }
             val targetVariables = args[1].toBooleanStrict()
             val parameter = when (referenceType) {
-                ParseContext.ReferenceType.FIELD -> null
-                ParseContext.ReferenceType.METHOD -> {
+                SyntaxTweak.ReferenceType.FIELD -> null
+                SyntaxTweak.ReferenceType.METHOD -> {
                     if (args.size < 3) {
                         throw IllegalArgumentException("Parameter index required when targeting a method")
                     }
@@ -69,6 +69,11 @@ class NumberBaseTweak(
             return NumberBaseTweak(member, targetBase, targetVariables, parameter)
         }
     }
+
+    override val supportedReferenceTypes = enumSetOf(
+        SyntaxTweak.ReferenceType.FIELD,
+        SyntaxTweak.ReferenceType.METHOD
+    )
 
     init {
         if (member.descriptor.isMethod) {
