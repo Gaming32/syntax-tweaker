@@ -17,10 +17,10 @@ fun main() {
             listOf(),
             mapOf(
                 shouldBeHex to listOf(
-                    NumberBaseTweak(NumberBaseTweak.NumberBase.HEX, shouldBeHex)
+                    NumberBaseTweak(shouldBeHex, NumberBaseTweak.NumberBase.HEX, true)
                 ),
                 shouldBeOctal to listOf(
-                    NumberBaseTweak(NumberBaseTweak.NumberBase.OCT, shouldBeOctal, 0)
+                    NumberBaseTweak(shouldBeOctal, NumberBaseTweak.NumberBase.OCT, true, 0)
                 )
             )
         )

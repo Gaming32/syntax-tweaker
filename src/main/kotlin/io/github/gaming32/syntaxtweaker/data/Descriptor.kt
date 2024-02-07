@@ -26,34 +26,55 @@ value class Descriptor(val raw: String) {
                     }
                     end + 1
                 }
+                '[' -> {
+                    var dims = 1
+                    while (index + dims < descriptor.length && descriptor[index + dims] == '[') {
+                        dims++
+                    }
+                    if (index + dims >= descriptor.length) {
+                        throw IllegalArgumentException(
+                            "Array descriptor's dimensions reach end of descriptor: ${descriptor.substring(index)}"
+                        )
+                    }
+                    if (dims > 255) {
+                        throw IllegalArgumentException(
+                            "Array descriptor has more than 255 dimensions ($dims): ${descriptor.substring(index)}"
+                        )
+                    }
+                    if (descriptor[index + dims] == 'V') {
+                        throw IllegalArgumentException(
+                            "Array may not be void at $dims: ${descriptor.substring(index)}"
+                        )
+                    }
+                    verifyDescriptor(descriptor, index + dims)
+                }
                 '(' -> {
                     if (index > 0) {
                         throw IllegalArgumentException(
                             "Descriptor cannot have inline method descriptor at $index: $descriptor"
                         )
                     }
-                    val end = descriptor.indexOf(')')
-                    if (end == -1) {
-                        throw IllegalArgumentException(
-                            "Method descriptor is unterminated: ${descriptor.substring(index)}"
-                        )
-                    }
-                    var checkIndex = index + 1
-                    while (checkIndex < end) {
-                        val newIndex = verifyDescriptor(descriptor, checkIndex)
+                    var checkIndex = 1
+                    while (checkIndex < descriptor.length && descriptor[checkIndex] != ')') {
                         if (descriptor[checkIndex] == 'V') {
                             throw IllegalArgumentException(
-                                "Method descriptor may not have void argument at $index: $descriptor"
+                                "Method descriptor may not have void argument at $checkIndex: $descriptor"
                             )
                         }
+                        val newIndex = verifyDescriptor(descriptor, checkIndex)
                         checkIndex = newIndex
                     }
-                    if (end == descriptor.length - 1) {
+                    if (checkIndex >= descriptor.length) {
                         throw IllegalArgumentException(
-                            "Method descriptor has no return: ${descriptor.substring(index)}"
+                            "Method descriptor doesn't have right paren: $descriptor"
                         )
                     }
-                    verifyDescriptor(descriptor, end + 1)
+                    if (checkIndex + 1 >= descriptor.length) {
+                        throw IllegalArgumentException(
+                            "Method descriptor doesn't have return: $descriptor"
+                        )
+                    }
+                    verifyDescriptor(descriptor, checkIndex + 1)
                 }
                 else -> throw IllegalArgumentException("Unknown descriptor: ${descriptor.substring(index)}")
             }

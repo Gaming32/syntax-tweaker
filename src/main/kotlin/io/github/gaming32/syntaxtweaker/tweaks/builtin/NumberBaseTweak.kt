@@ -1,24 +1,34 @@
 package io.github.gaming32.syntaxtweaker.tweaks.builtin
 
-import org.jetbrains.kotlin.com.intellij.psi.JavaTokenType
-import org.jetbrains.kotlin.com.intellij.psi.PsiAssignmentExpression
-import org.jetbrains.kotlin.com.intellij.psi.PsiExpression
-import org.jetbrains.kotlin.com.intellij.psi.PsiField
-import org.jetbrains.kotlin.com.intellij.psi.PsiLiteralExpression
-import org.jetbrains.kotlin.com.intellij.psi.PsiMethod
-import org.jetbrains.kotlin.com.intellij.psi.PsiMethodCallExpression
-import org.jetbrains.kotlin.com.intellij.psi.PsiPrefixExpression
 import io.github.gaming32.syntaxtweaker.TweakTarget
 import io.github.gaming32.syntaxtweaker.data.MemberReference
 import io.github.gaming32.syntaxtweaker.data.MemberReference.Companion.toMemberReference
 import io.github.gaming32.syntaxtweaker.tweaks.ParseContext
 import io.github.gaming32.syntaxtweaker.tweaks.SyntaxTweak
 import io.github.gaming32.syntaxtweaker.tweaks.TweakParser
+import org.jetbrains.kotlin.com.intellij.lang.jvm.JvmModifier
+import org.jetbrains.kotlin.com.intellij.psi.JavaRecursiveElementVisitor
+import org.jetbrains.kotlin.com.intellij.psi.JavaTokenType
+import org.jetbrains.kotlin.com.intellij.psi.PsiAssignmentExpression
+import org.jetbrains.kotlin.com.intellij.psi.PsiCodeBlock
+import org.jetbrains.kotlin.com.intellij.psi.PsiExpression
+import org.jetbrains.kotlin.com.intellij.psi.PsiField
+import org.jetbrains.kotlin.com.intellij.psi.PsiLiteralExpression
+import org.jetbrains.kotlin.com.intellij.psi.PsiLocalVariable
+import org.jetbrains.kotlin.com.intellij.psi.PsiMethod
+import org.jetbrains.kotlin.com.intellij.psi.PsiMethodCallExpression
+import org.jetbrains.kotlin.com.intellij.psi.PsiParameter
+import org.jetbrains.kotlin.com.intellij.psi.PsiPrefixExpression
 import org.jetbrains.kotlin.com.intellij.psi.PsiQualifiedReferenceElement
+import org.jetbrains.kotlin.com.intellij.psi.PsiReferenceExpression
+import org.jetbrains.kotlin.com.intellij.psi.PsiVariable
+import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
+import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 
 class NumberBaseTweak(
-    val targetBase: NumberBase,
     val member: MemberReference,
+    val targetBase: NumberBase,
+    val targetVariables: Boolean,
     val parameter: Int? = null
 ) : SyntaxTweak {
     enum class NumberBase(val prefix: String, val altPrefix: String?, val radix: Int, val useMinus: Boolean) {
@@ -35,23 +45,28 @@ class NumberBaseTweak(
             if (args.isEmpty()) {
                 throw IllegalArgumentException("Missing targetBase")
             }
-            val base = NumberBase.valueOf(args[0].uppercase())
+            val targetBase = NumberBase.valueOf(args[0].uppercase())
+            if (args.size < 2) {
+                throw IllegalArgumentException("Missing targetVariables")
+            }
+            val targetVariables = args[1].toBooleanStrict()
             val parameter = when (referenceType) {
                 ParseContext.ReferenceType.FIELD -> null
                 ParseContext.ReferenceType.METHOD -> {
-                    if (args.size < 2) {
-                        throw IllegalArgumentException("$ID needs a parameter index when targeting a method")
+                    if (args.size < 3) {
+                        throw IllegalArgumentException("Parameter index required when targeting a method")
                     }
-                    args[1].toInt()
+                    args[2].toInt()
                 }
-                else -> throw IllegalArgumentException("$ID is only applicable to members")
+                else -> throw IllegalArgumentException("Only applicable to members")
             }
-            if (parameter != null && parameter >= member!!.descriptor.getArgumentCount()) {
+            member!!
+            if (parameter != null && parameter >= member.descriptor.getArgumentCount()) {
                 throw IllegalArgumentException(
                     "Parameter $parameter out of bounds for descriptor ${member.descriptor}"
                 )
             }
-            return NumberBaseTweak(base, member!!, parameter)
+            return NumberBaseTweak(member, targetBase, targetVariables, parameter)
         }
     }
 
@@ -79,6 +94,28 @@ class NumberBaseTweak(
     }
 
     private fun applyExpr(expr: PsiExpression, target: TweakTarget) {
+        if (expr is PsiReferenceExpression) {
+            if (!targetVariables) return
+            val variable = expr.resolve() as? PsiVariable ?: return
+            if (variable !is PsiParameter && variable !is PsiLocalVariable) return
+            variable.initializer?.let { applyExpr(it, target) }
+            if (variable.hasModifier(JvmModifier.FINAL)) return
+            val block = variable.parentsWithSelf.firstIsInstanceOrNull<PsiCodeBlock>() ?: return
+            return block.accept(object : JavaRecursiveElementVisitor() {
+                override fun visitReferenceExpression(reference: PsiReferenceExpression) {
+                    if (reference == expr) {
+                        // Prevent infinite recursion
+                        return super.visitReferenceExpression(reference)
+                    }
+                    (reference.parent as? PsiAssignmentExpression)?.let { assignment ->
+                        if (assignment.operationTokenType != JavaTokenType.EQ) return@let
+                        if (reference.resolve() != variable) return@let
+                        applyExpr(assignment.rExpression ?: return@let, target)
+                    }
+                    super.visitReferenceExpression(reference)
+                }
+            })
+        }
         var realExpr = expr
         var text = realExpr.text
         val value = when (realExpr) {

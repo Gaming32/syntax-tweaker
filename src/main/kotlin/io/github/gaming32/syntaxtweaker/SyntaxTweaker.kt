@@ -119,6 +119,7 @@ open class SyntaxTweaker(
                         is PsiField -> tweaks.applyFieldReference(reference, resolved, this@FileTweaker)
                         is PsiMethod -> tweaks.applyMethodReference(reference, resolved, this@FileTweaker)
                     }
+                    super.visitReferenceElement(reference)
                 }
             })
         }
