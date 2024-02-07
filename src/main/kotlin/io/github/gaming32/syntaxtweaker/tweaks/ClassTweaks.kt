@@ -15,11 +15,15 @@ class ClassTweaks(
     val classTweaks: TweakList,
     val memberTweaks: Map<MemberReference, TweakList>
 ) : SyntaxTweak {
-    override val supportedReferenceTypes = enumSetOf(
-        SyntaxTweak.ReferenceType.CLASS,
-        SyntaxTweak.ReferenceType.FIELD,
-        SyntaxTweak.ReferenceType.METHOD
-    )
+    companion object {
+        private val SUPPORTED_REFERENCE_TYPES = enumSetOf(
+            SyntaxTweak.ReferenceType.CLASS,
+            SyntaxTweak.ReferenceType.FIELD,
+            SyntaxTweak.ReferenceType.METHOD
+        )
+    }
+
+    override val supportedReferenceTypes get() = SUPPORTED_REFERENCE_TYPES
 
     override fun applyClassReference(reference: PsiElement, clazz: PsiClass, target: TweakTarget) {
         if (clazz.qualifiedName != className) return

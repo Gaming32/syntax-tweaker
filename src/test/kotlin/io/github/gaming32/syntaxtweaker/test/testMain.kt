@@ -9,8 +9,8 @@ import java.io.File
 
 fun main() {
     val testClass = "io.github.gaming32.syntaxtweaker.test.TestClass"
-    val shouldBeHex = MemberReference("shouldBeHex", "I")
-    val shouldBeOctal = MemberReference("shouldBeOctal", "(I)V")
+    val shouldBeHex = MemberReference("shouldBeHex", "int")
+    val shouldBeOctal = MemberReference("shouldBeOctal", "void(int)")
     val tweaks = TweakSet(
         mapOf(),
         mapOf(

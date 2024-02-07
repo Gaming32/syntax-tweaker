@@ -14,7 +14,11 @@ data class TweakSet(
     val packages: Map<String, TweakList>,
     val classes: Map<String, ClassTweaks>
 ) : SyntaxTweak {
-    override val supportedReferenceTypes = fullEnumSet<SyntaxTweak.ReferenceType>()
+    companion object {
+        private val SUPPORTED_REFERENCE_TYPES = fullEnumSet<SyntaxTweak.ReferenceType>()
+    }
+
+    override val supportedReferenceTypes get() = SUPPORTED_REFERENCE_TYPES
 
     override fun applyPackageReference(reference: PsiElement, pkg: PsiPackage, target: TweakTarget) {
         packages[pkg.qualifiedName]?.applyPackageReference(reference, pkg, target)

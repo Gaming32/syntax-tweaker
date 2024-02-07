@@ -3,6 +3,7 @@ package io.github.gaming32.syntaxtweaker.tweaks.builtin
 import io.github.gaming32.syntaxtweaker.TweakTarget
 import io.github.gaming32.syntaxtweaker.data.MemberReference
 import io.github.gaming32.syntaxtweaker.data.MemberReference.Companion.toMemberReference
+import io.github.gaming32.syntaxtweaker.data.Type
 import io.github.gaming32.syntaxtweaker.tweaks.SyntaxTweak
 import io.github.gaming32.syntaxtweaker.tweaks.TweakParser
 import org.jetbrains.kotlin.com.intellij.lang.jvm.JvmModifier
@@ -41,6 +42,11 @@ class NumberBaseTweak(
     companion object : TweakParser<NumberBaseTweak> {
         const val ID = "number-base"
 
+        private val SUPPORTED_REFERENCE_TYPES = enumSetOf(
+            SyntaxTweak.ReferenceType.FIELD,
+            SyntaxTweak.ReferenceType.METHOD
+        )
+
         override fun TweakParser.ParseContext.parse(): NumberBaseTweak {
             if (args.isEmpty()) {
                 throw IllegalArgumentException("Missing targetBase")
@@ -61,22 +67,19 @@ class NumberBaseTweak(
                 else -> throw IllegalArgumentException("Only applicable to members")
             }
             member!!
-            if (parameter != null && parameter >= member.descriptor.getArgumentCount()) {
+            if (parameter != null && parameter >= (member.type as Type.MethodType).parameters.size) {
                 throw IllegalArgumentException(
-                    "Parameter $parameter out of bounds for descriptor ${member.descriptor}"
+                    "Parameter $parameter out of bounds for ${member.type}"
                 )
             }
             return NumberBaseTweak(member, targetBase, targetVariables, parameter)
         }
     }
 
-    override val supportedReferenceTypes = enumSetOf(
-        SyntaxTweak.ReferenceType.FIELD,
-        SyntaxTweak.ReferenceType.METHOD
-    )
+    override val supportedReferenceTypes get() = SUPPORTED_REFERENCE_TYPES
 
     init {
-        if (member.descriptor.isMethod) {
+        if (member.type is Type.MethodType) {
             if (parameter == null) {
                 throw IllegalArgumentException("$member is a method, but parameter is null")
             }

@@ -1,14 +1,13 @@
 package io.github.gaming32.syntaxtweaker.data
 
+import io.github.gaming32.syntaxtweaker.data.Type.Companion.toSyntaxTweakerType
+import io.github.gaming32.syntaxtweaker.util.getOrPutUserData
 import org.jetbrains.kotlin.com.intellij.openapi.util.Key
 import org.jetbrains.kotlin.com.intellij.psi.PsiField
 import org.jetbrains.kotlin.com.intellij.psi.PsiMember
 import org.jetbrains.kotlin.com.intellij.psi.PsiMethod
-import org.jetbrains.kotlin.com.intellij.psi.util.ClassUtil
-import io.github.gaming32.syntaxtweaker.data.Descriptor.Companion.toDescriptor
-import io.github.gaming32.syntaxtweaker.util.getOrPutUserData
 
-data class MemberReference(val name: String, val descriptor: Descriptor) {
+data class MemberReference(val name: String, val type: Type) {
     companion object {
         private val MEMBER_REFERENCE_KEY = Key.create<MemberReference>(
             "io.github.gaming32.syntaxtweaker.data.memberReference"
@@ -16,20 +15,39 @@ data class MemberReference(val name: String, val descriptor: Descriptor) {
 
         fun PsiMember.toMemberReference() = getOrPutUserData(MEMBER_REFERENCE_KEY) {
             val name = name ?: return@getOrPutUserData null
-            val descriptor = when (this) {
-                is PsiField -> ClassUtil.getBinaryPresentation(type)
-                is PsiMethod -> ClassUtil.getAsmMethodSignature(this)
+            val type = when (this) {
+                is PsiField -> type.toSyntaxTweakerType()
+                is PsiMethod -> Type.MethodType(
+                    returnType?.toSyntaxTweakerType(),
+                    parameterList.parameters.map { it.type.toSyntaxTweakerType() }
+                )
                 else -> return@getOrPutUserData null
             }
-            MemberReference(name, descriptor.toDescriptor())
+            MemberReference(name, type)
         }
 
-        operator fun invoke(name: String, descriptor: String) = MemberReference(name, descriptor.toDescriptor())
+        operator fun invoke(name: String, descriptor: String) =
+            MemberReference(name, descriptor.toSyntaxTweakerType())
     }
 
-    override fun toString() = if (descriptor.isMethod) {
-        "$name$descriptor"
-    } else {
-        "$name:$descriptor"
-    }
+    override fun toString() =
+        if (type is Type.MethodType) {
+            buildString {
+                type.returnType?.let {
+                    append(it)
+                    append(' ')
+                }
+                append(name)
+                append('(')
+                type.parameters.forEachIndexed { index, param ->
+                    if (index > 0) {
+                        append(", ")
+                    }
+                    append(param)
+                }
+                append(')')
+            }
+        } else {
+            "$type $name"
+        }
 }
