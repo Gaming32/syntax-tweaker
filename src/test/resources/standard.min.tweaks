@@ -1,0 +1,1 @@
+class io.github.gaming32.syntaxtweaker.test.TestClass{member int shouldBeHex{number-base hex true;}member void shouldBeOctal(int){number-base oct true 0;}member TestClass(){}}
