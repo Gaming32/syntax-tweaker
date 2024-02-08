@@ -8,138 +8,208 @@ import io.github.gaming32.syntaxtweaker.tweaks.SyntaxTweak
 import io.github.gaming32.syntaxtweaker.tweaks.TweakList
 import io.github.gaming32.syntaxtweaker.tweaks.TweakSet
 import io.github.gaming32.syntaxtweaker.util.plus
-import org.jetbrains.kotlin.js.parser.sourcemaps.JsonString
-import org.jetbrains.kotlin.js.parser.sourcemaps.JsonSyntaxException
-import org.jetbrains.kotlin.js.parser.sourcemaps.parseJson
+import java.io.Reader
+import java.io.StringReader
 import java.nio.file.Path
-import kotlin.io.path.useLines
-
-private typealias LinesParser = Iterator<IndexedValue<Pair<String, String>>>
+import kotlin.io.path.bufferedReader
 
 object TweaksParser {
-    fun parse(path: Path, registry: TweakRegistry = TweakRegistry.DEFAULT) = path.useLines { parse(it, registry) }
+    fun parse(path: Path, registry: TweakRegistry = TweakRegistry.DEFAULT) =
+        path.bufferedReader().use { parse(it, registry) }
 
-    fun parse(tweaks: String, registry: TweakRegistry = TweakRegistry.DEFAULT) = parse(tweaks.lineSequence(), registry)
+    fun parse(tweaks: String, registry: TweakRegistry = TweakRegistry.DEFAULT) =
+        parse(StringReader(tweaks), registry)
 
-    fun parse(lines: Sequence<String>, registry: TweakRegistry = TweakRegistry.DEFAULT): TweakSet {
+    fun parse(reader: Reader, registry: TweakRegistry = TweakRegistry.DEFAULT): TweakSet {
         val packages = mutableMapOf<String, TweakList>()
         val classes = mutableMapOf<String, ClassTweaks>()
         val metadata = mutableMapOf<String, String>()
-        val iterator: LinesParser = (lines + "").zipWithNext().withIndex().iterator()
-        while (iterator.hasNext()) {
-            val (lineNo, linePair) = iterator.next()
-            val (line, nextLine) = linePair
-            if (line.startsWith("#") || line.isBlank()) continue
-            val parts = parseParts(line.split("\t"), lineNo)
-            when (parts[0]) {
-                "package" -> {
-                    val name = parts.getOrNull(1)
-                        ?: throw InvalidTweaksException("Missing package name on line ${lineNo + 1}")
-                    if (!nextLine.startsWith("\t")) continue
-                    packages[name] += parseBasic(
-                        iterator, "\t", registry, TweakParser.ParseContext(
-                            metadata, SyntaxTweak.ReferenceType.PACKAGE, name, null
-                        )
-                    ).first
-                }
-                "class" -> {
-                    val name = parts.getOrNull(1)
-                        ?: throw InvalidTweaksException("Missing class name on line ${lineNo + 1}")
-                    if (!nextLine.startsWith("\t")) continue
-                    classes[name] += parseClass(
-                        iterator, registry, TweakParser.ParseContext(
-                            metadata, SyntaxTweak.ReferenceType.CLASS, name, null
-                        )
+        val tokens = Tokenizer(reader).tokenize().iterator()
+        while (tokens.hasNext()) {
+            var token = tokens.next()
+            if (token !is StringToken) {
+                throw InvalidTweaksException("Expected string/literal, found ${token.withPosition()}", token)
+            }
+            if (token.value == "package") {
+                val packageName = tokens.expectString("package name").value
+                tokens.expect(SimpleTokenType.LCURLY, "package name")
+                packages[packageName] += parseTweakList(
+                    tokens, registry, TweakParser.ParseContext(
+                        metadata, SyntaxTweak.ReferenceType.PACKAGE, packageName, null
                     )
+                )
+                continue
+            }
+            if (token.value == "class") {
+                val clazz = parseClass(tokens, registry, metadata)
+                classes[clazz.className] += clazz
+                continue
+            }
+            val metadataKey = token.value
+            token = tokens.expect()
+            if (token !is SimpleToken) {
+                throw InvalidTweaksException("Expected = or ; after metadata key, found ${token.withPosition()}", token)
+            }
+            when (token.type) {
+                SimpleTokenType.SEMI -> metadata[metadataKey] = ""
+                SimpleTokenType.EQUALS -> {
+                    metadata[metadataKey] = tokens.expectString("metadata value").value
+                    tokens.expect(SimpleTokenType.SEMI, "metadata value")
                 }
-                else -> metadata[parts[0]] = parts.getOrNull(1) ?: ""
+                else -> throw InvalidTweaksException("Expected = or ; after metadata key, found ${token.withPosition()}", token)
             }
         }
         return TweakSet(packages, classes, metadata)
     }
 
     private fun parseClass(
-        iterator: LinesParser, registry: TweakRegistry, context: TweakParser.ParseContext
+        tokens: Iterator<Token>, registry: TweakRegistry, metadata: Map<String, String>
     ): ClassTweaks {
+        val className = tokens.expectString("class name").value
+        val context = TweakParser.ParseContext(metadata, SyntaxTweak.ReferenceType.CLASS, className, null)
         val classTweaks = mutableListOf<SyntaxTweak>()
         val memberTweaks = mutableMapOf<MemberReference, TweakList>()
-        while (iterator.hasNext()) {
-            val (lineNo, linePair) = iterator.next()
-            val (line, nextLine) = linePair
-            if (!nextLine.startsWith("\t")) break
-            val parts = parseParts(line.substring(1).split("\t"), lineNo)
-            when (parts[0]) {
-                "member" -> {
-                    val name = parts.getOrNull(1)
-                        ?: throw InvalidTweaksException("Missing member name on line ${lineNo + 1}")
-                    val typeStr = parts.getOrNull(2)
-                        ?: throw InvalidTweaksException("Missing member type on line ${lineNo + 1}")
-                    val type = try {
-                        typeStr.toSyntaxTweakerType()
-                    } catch (e: IllegalArgumentException) {
-                        throw InvalidTweaksException("Invalid member type on line ${lineNo + 1}", e)
-                    }
-                    val member = MemberReference(name, type)
-                    if (!nextLine.startsWith("\t\t")) continue
-                    val (membersTweaks, innerNextLine) = parseBasic(
-                        iterator, "\t\t", registry, context.copy(
-                            referenceType = if (member.type is Type.MethodType) {
-                                SyntaxTweak.ReferenceType.METHOD
-                            } else {
-                                SyntaxTweak.ReferenceType.FIELD
-                            },
-                            member = member
-                        )
-                    )
-                    memberTweaks[member] += membersTweaks
-                    if (!innerNextLine.startsWith("\t")) break
+        tokens.expect(SimpleTokenType.LCURLY, "class name")
+        while (true) {
+            val startToken = tokens.expect()
+            if (startToken is SimpleToken) {
+                if (startToken.type != SimpleTokenType.RCURLY) {
+                    throw InvalidTweaksException("Expected } to end class declaration, found ${startToken.withPosition()}", startToken)
                 }
-                else -> parseTweak(parts, lineNo, registry, context)?.let(classTweaks::add)
+                break
             }
+            startToken as StringToken
+            if (startToken.value == "member") {
+                val (member, tweaks) = parseMember(tokens, registry, context)
+                memberTweaks[member] += tweaks
+                continue
+            }
+            parseTweak(tokens, startToken, registry, context)?.let(classTweaks::add)
         }
-        return ClassTweaks(context.owner, classTweaks, memberTweaks)
+        return ClassTweaks(className, classTweaks, memberTweaks)
     }
 
-    private fun parseBasic(
-        iterator: LinesParser, indent: String, registry: TweakRegistry, context: TweakParser.ParseContext
-    ): Pair<TweakList, String> {
-        val result = mutableListOf<SyntaxTweak>()
-        var returnNextLine = ""
-        while (iterator.hasNext()) {
-            val (lineNo, linePair) = iterator.next()
-            val (line, nextLine) = linePair
-            returnNextLine = nextLine
-            val parts = parseParts(line.substring(indent.length).split("\t"), lineNo)
-            parseTweak(parts, lineNo, registry, context)?.let(result::add)
-            if (!nextLine.startsWith(indent)) break
+    private fun parseMember(
+        tokens: Iterator<Token>, registry: TweakRegistry, context: TweakParser.ParseContext
+    ): Pair<MemberReference, TweakList> {
+        val returnOrName = tokens.expectString("member type or name")
+        var nextToken = tokens.expect()
+        val (returnType, name) = if (nextToken is StringToken) {
+            val name = nextToken.value
+            nextToken = tokens.expect()
+            Pair(parseType(returnOrName), name)
+        } else {
+            Pair(null, returnOrName.value)
         }
-        return Pair(result, returnNextLine)
+        if (nextToken !is SimpleToken) {
+            throw InvalidTweaksException("Expected ( or { after member name, found ${nextToken.withPosition()}", nextToken)
+        }
+        val memberType = if (nextToken.type == SimpleTokenType.LPAREN) {
+            if (returnType == null && name != context.owner.substringAfterLast('.')) {
+                throw InvalidTweaksException("Constructor name must match class name, found ${returnOrName.withPosition()}", returnOrName)
+            }
+            val params = mutableListOf<Type>()
+            while (true) {
+                nextToken = tokens.expect()
+                if (nextToken is SimpleToken) {
+                    if (nextToken.type != SimpleTokenType.RPAREN) {
+                        throw InvalidTweaksException("Expected ) after method parameters, found ${nextToken.withPosition()}", nextToken)
+                    }
+                    break
+                }
+                try {
+                    params.add((nextToken as StringToken).value.toSyntaxTweakerType())
+                } catch (e: IllegalArgumentException) {
+                    throw InvalidTweaksException("Invalid parameter type ${nextToken.withPosition()}: ${e.localizedMessage}", nextToken, e)
+                }
+            }
+            nextToken = tokens.expect()
+            try {
+                Type.MethodType(returnType, params)
+            } catch (e: IllegalArgumentException) {
+                throw InvalidTweaksException("Invalid method type ${returnOrName.withPosition()}: ${e.localizedMessage}", returnOrName, e)
+            }
+        } else {
+            returnType ?: throw InvalidTweaksException("Missing field type at ${returnOrName.positionString}", returnOrName)
+        }
+        if (nextToken !is SimpleToken || nextToken.type != SimpleTokenType.LCURLY) {
+            throw InvalidTweaksException("Expected { after member header, found ${nextToken.withPosition()}", nextToken)
+        }
+        val member = MemberReference(name, memberType)
+        return Pair(member, parseTweakList(tokens, registry, context.copy(referenceType = member.referenceType, member = member)))
+    }
+
+    private fun parseTweakList(
+        tokens: Iterator<Token>, registry: TweakRegistry, context: TweakParser.ParseContext
+    ): TweakList {
+        val result = mutableListOf<SyntaxTweak>()
+        while (true) {
+            val startToken = tokens.expect()
+            if (startToken is SimpleToken) {
+                if (startToken.type != SimpleTokenType.RCURLY) {
+                    throw InvalidTweaksException("Expected } to end tweak list, found ${startToken.withPosition()}", startToken)
+                }
+                break
+            }
+            parseTweak(tokens, startToken as StringToken, registry, context)?.let(result::add)
+        }
+        return result
     }
 
     private fun parseTweak(
-        parts: List<String>, lineNo: Int, registry: TweakRegistry, context: TweakParser.ParseContext
+        tokens: Iterator<Token>, startToken: StringToken, registry: TweakRegistry, context: TweakParser.ParseContext
     ): SyntaxTweak? {
-        try {
-            return registry.parseLine(context, parts)
+        val args = mutableListOf(startToken.value)
+        while (true) {
+            val token = tokens.expect()
+            if (token is SimpleToken) {
+                if (token.type != SimpleTokenType.SEMI) {
+                    throw InvalidTweaksException("Expected ; to end tweak args, found ${token.withPosition()}", token)
+                }
+                break
+            }
+            args.add((token as StringToken).value)
+        }
+        val parsed = try {
+            registry.parseLine(context, args)
         } catch (e: IllegalArgumentException) {
-            throw InvalidTweaksException("Invalid tweak on line ${lineNo + 1}", e)
+            throw InvalidTweaksException("Invalid tweak ${args[0]} at ${startToken.positionString}: ${e.localizedMessage}", startToken, e)
+        }
+        if (parsed == null && "skip-unknown" !in context.metadata) {
+            throw InvalidTweaksException(
+                "Unknown tweak ${startToken.withPosition()}. Use skip-unknown; at the top of the file to skip.",
+                startToken
+            )
+        }
+        return parsed
+    }
+
+    private fun parseType(token: StringToken): Type {
+        try {
+            return token.value.toSyntaxTweakerType()
+        } catch (e: IllegalArgumentException) {
+            throw InvalidTweaksException("Invalid type ${token.withPosition()}: ${e.localizedMessage}", token, e)
         }
     }
 
-    private fun parseParts(parts: List<String>, lineNo: Int): List<String> {
-        var result: MutableList<String>? = null
-        for (i in parts.indices) {
-            val part = parts[i]
-            if (!part.startsWith('"')) continue
-            if (result == null) {
-                result = parts.toMutableList()
-            }
-            try {
-                result[i] = (parseJson(part) as JsonString).value
-            } catch (e: JsonSyntaxException) {
-                throw InvalidTweaksException("Invalid part at index $i on line ${lineNo + 1}", e)
-            }
-        }
-        return result ?: parts
+    private fun Iterator<Token>.expectString(what: String = "string/literal"): StringToken {
+        val token = expect()
+        return token as? StringToken
+            ?: throw InvalidTweaksException("Expected $what, found ${token.withPosition()}", token)
     }
+
+    private fun Iterator<Token>.expect(type: SimpleTokenType, after: String): SimpleToken {
+        val token = expect()
+        if ((token as? SimpleToken)?.type != type) {
+            throw InvalidTweaksException("Expected $type after $after, found ${token.withPosition()}", token)
+        }
+        return token
+    }
+
+    private fun Iterator<Token>.expect() =
+        if (hasNext()) next() else throw InvalidTweaksException("Unexpected EOF in tweaks file")
+
+    private fun Token.withPosition() = "$this at $positionString"
+
+    private val Token.positionString get() = "$line:$column"
 }

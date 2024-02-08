@@ -3,6 +3,7 @@ package io.github.gaming32.syntaxtweaker.util
 import io.github.gaming32.syntaxtweaker.tweaks.ClassTweaks
 import org.jetbrains.kotlin.com.intellij.openapi.util.Key
 import org.jetbrains.kotlin.com.intellij.openapi.util.UserDataHolder
+import java.io.Writer
 import java.util.*
 import kotlin.collections.plus as plusNotNull
 
@@ -28,4 +29,33 @@ operator fun ClassTweaks?.plus(other: ClassTweaks): ClassTweaks {
     return ClassTweaks(
         other.className, classTweaks + other.classTweaks, mergedMembers
     )
+}
+
+fun Appendable.asWriter() = this as? Writer ?: object : Writer() {
+    val currentWrite = object : CharSequence {
+        var chars: CharArray? = null
+
+        override val length get() = chars!!.size
+
+        override fun get(index: Int) = chars!![index]
+
+        override fun subSequence(startIndex: Int, endIndex: Int) = String(chars!!, startIndex, endIndex - startIndex)
+    }
+
+    override fun write(cbuf: CharArray, off: Int, len: Int) {
+        currentWrite.chars = cbuf
+        this@asWriter.append(currentWrite, off, off + len)
+    }
+
+    override fun write(c: Int) {
+        this@asWriter.append(c.toChar())
+    }
+
+    override fun write(str: String, off: Int, len: Int) {
+        this@asWriter.append(str, off, off + len)
+    }
+
+    override fun flush() = Unit
+
+    override fun close() = Unit
 }

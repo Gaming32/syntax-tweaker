@@ -10,7 +10,13 @@ fun interface TweakParser<T : SyntaxTweak> {
         val owner: String,
         val member: MemberReference?,
         val args: List<String> = listOf()
-    )
+    ) {
+        init {
+            require(member == null || referenceType == member.referenceType) {
+                "ParseContext referenceType ($referenceType) doesn't match member ($member)"
+            }
+        }
+    }
 
     fun ParseContext.parse(): T
 }

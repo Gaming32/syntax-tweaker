@@ -1,53 +1,174 @@
 package io.github.gaming32.syntaxtweaker.tweaks.writer
 
+import io.github.gaming32.syntaxtweaker.data.Type
+import io.github.gaming32.syntaxtweaker.tweaks.SyntaxTweak
 import io.github.gaming32.syntaxtweaker.tweaks.TweakSet
+import io.github.gaming32.syntaxtweaker.tweaks.parser.SimpleTokenType
+import io.github.gaming32.syntaxtweaker.util.asWriter
 import org.jetbrains.kotlin.js.parser.sourcemaps.JsonString
-import java.io.Writer
 import java.nio.file.Path
-import kotlin.io.path.writeLines
+import java.util.*
+import kotlin.io.path.bufferedWriter
 
 object TweaksWriter {
-    fun writeToString(tweaks: TweakSet) = write(tweaks).joinToString("") { "$it\n" }
+    private val needsQuoting = BitSet(127)
 
-    fun writeTo(tweaks: TweakSet, path: Path) {
-        path.writeLines(write(tweaks))
+    init {
+        SimpleTokenType.entries.forEach { needsQuoting.set(it.char.code) }
+        for (char in "'\"/") {
+            needsQuoting.set(char.code)
+        }
     }
 
-    fun writeTo(tweaks: TweakSet, writer: Writer) = write(tweaks).forEach { writer.write("$it\n") }
+    fun writeToString(tweaks: TweakSet, indent: String? = "    ") =
+        buildString { writeTo(tweaks, this, indent) }
 
-    fun write(tweaks: TweakSet): Sequence<String> = sequence {
+    fun writeTo(tweaks: TweakSet, path: Path, indent: String? = "    ") =
+        path.bufferedWriter().use { writeTo(tweaks, it, indent) }
+
+    fun writeTo(tweaks: TweakSet, writer: Appendable, indent: String? = "    ") {
+        require(indent?.isBlank() != false) { "Indent ${JsonString(indent!!)} is not blank" }
+        var wroteSomething = false
+
         for ((key, value) in tweaks.metadata) {
-            line(key, value)
-        }
-        for ((pkg, packageTweaks) in tweaks.packages) {
-            line("package", pkg)
-            for (tweak in packageTweaks) {
-                line("", tweak.id ?: continue, *tweak.serialize().toTypedArray())
+            wroteSomething = true
+            writer.writeString(key)
+            if (value.isNotEmpty()) {
+                if (indent != null) {
+                    writer.append(" = ")
+                } else {
+                    writer.append('=')
+                }
+                writer.writeString(value)
+            }
+            if (indent != null) {
+                writer.appendLine(';')
+            } else {
+                writer.append(';')
             }
         }
+
+        for ((pkg, packageTweaks) in tweaks.packages) {
+            if (wroteSomething && indent != null) {
+                writer.appendLine()
+            }
+            wroteSomething = true
+            writer.append("package ").writeString(pkg)
+            if (indent != null) {
+                writer.appendLine(" {")
+            } else {
+                writer.append('{')
+            }
+            for (tweak in packageTweaks) {
+                writer.writeTweak(tweak, indent)
+            }
+            if (indent != null) {
+                writer.appendLine('}')
+            } else {
+                writer.append('}')
+            }
+        }
+
+        val deepIndent = indent?.repeat(2)
         for ((clazz, classTweaks) in tweaks.classes) {
-            line("class", clazz)
+            if (wroteSomething) {
+                writer.appendLine()
+            }
+            wroteSomething = true
+            writer.append("class ").writeString(clazz)
+            if (indent != null) {
+                writer.appendLine(" {")
+            } else {
+                writer.append('{')
+            }
+            var wroteSomethingInner = false
             for (tweak in classTweaks.classTweaks) {
-                line("", tweak.id ?: continue, *tweak.serialize().toTypedArray())
+                wroteSomethingInner = true
+                writer.writeTweak(tweak, indent)
             }
             for ((member, memberTweaks) in classTweaks.memberTweaks) {
-                line("", "member", member.name, member.type.toString())
-                for (tweak in memberTweaks) {
-                    line("", "", tweak.id ?: continue, *tweak.serialize().toTypedArray())
+                if (wroteSomethingInner && indent != null) {
+                    writer.appendLine()
                 }
+                wroteSomethingInner = true
+                if (indent != null) {
+                    writer.append(indent)
+                }
+                writer.append("member ")
+                val type = member.type
+                if (type is Type.MethodType) {
+                    if (type.returnType != null) {
+                        writer.writeString(type.returnType).append(' ')
+                    }
+                    writer.writeString(member.name).append('(')
+                    type.parameters.forEachIndexed { index, param ->
+                        if (index > 0) {
+                            if (indent != null) {
+                                writer.append(", ")
+                            } else {
+                                writer.append(',')
+                            }
+                        }
+                        writer.writeString(param)
+                    }
+                    writer.append(')')
+                } else {
+                    writer.writeString(type).append(' ').writeString(member.name)
+                }
+                if (indent != null) {
+                    writer.appendLine(" {")
+                } else {
+                    writer.append('{')
+                }
+                for (tweak in memberTweaks) {
+                    writer.writeTweak(tweak, deepIndent)
+                }
+                if (indent != null) {
+                    writer.append(indent).appendLine('}')
+                } else {
+                    writer.append('}')
+                }
+            }
+            if (indent != null) {
+                writer.appendLine('}')
+            } else {
+                writer.append('}')
             }
         }
     }
 
-    private suspend fun SequenceScope<String>.line(vararg args: String) {
-        yield(args.joinToString("\t") { escape(it) })
+    private fun Appendable.writeTweak(tweak: SyntaxTweak, indent: String?): Appendable {
+        val id = tweak.id ?: return this
+        if (indent != null) {
+            append(indent)
+        }
+        writeString(id)
+        for (arg in tweak.serialize()) {
+            append(' ').writeString(arg)
+        }
+        return if (indent != null) {
+            appendLine(';')
+        } else {
+            append(';')
+        }
     }
 
-    private fun escape(s: String): String {
-        val escaped = JsonString(s).toString()
-        if ('\\' !in escaped) {
-            return s
+    private fun Appendable.writeString(s: Any?) = writeString(s.toString())
+
+    private fun Appendable.writeString(s: String) =
+        if (needsQuoting(s)) {
+            JsonString(s).write(asWriter())
+            this
+        } else {
+            append(s)
         }
-        return escaped
+
+    private fun needsQuoting(s: String): Boolean {
+        for (c in s) {
+            if (c !in ' '..<127.toChar() || needsQuoting[c.code] || c.isWhitespace()) {
+                return true
+            }
+        }
+        return false
     }
 }

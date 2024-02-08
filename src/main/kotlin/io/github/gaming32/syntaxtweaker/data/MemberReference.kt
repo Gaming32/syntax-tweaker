@@ -1,6 +1,7 @@
 package io.github.gaming32.syntaxtweaker.data
 
 import io.github.gaming32.syntaxtweaker.data.Type.Companion.toSyntaxTweakerType
+import io.github.gaming32.syntaxtweaker.tweaks.SyntaxTweak
 import io.github.gaming32.syntaxtweaker.util.getOrPutUserData
 import org.jetbrains.kotlin.com.intellij.openapi.util.Key
 import org.jetbrains.kotlin.com.intellij.psi.PsiField
@@ -26,9 +27,18 @@ data class MemberReference(val name: String, val type: Type) {
             MemberReference(name, type)
         }
 
-        operator fun invoke(name: String, descriptor: String) =
-            MemberReference(name, descriptor.toSyntaxTweakerType())
+        operator fun invoke(name: String, type: String) =
+            MemberReference(name, type.toSyntaxTweakerType())
     }
+
+    val isMethod get() = type is Type.MethodType
+
+    val referenceType get() =
+        if (isMethod) {
+            SyntaxTweak.ReferenceType.METHOD
+        } else {
+            SyntaxTweak.ReferenceType.FIELD
+        }
 
     override fun toString() =
         if (type is Type.MethodType) {
