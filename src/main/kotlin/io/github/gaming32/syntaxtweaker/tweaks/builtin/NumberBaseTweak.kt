@@ -76,6 +76,8 @@ class NumberBaseTweak(
         }
     }
 
+    override val id get() = ID
+
     override val supportedReferenceTypes get() = SUPPORTED_REFERENCE_TYPES
 
     init {
@@ -175,6 +177,7 @@ class NumberBaseTweak(
 
     override fun serialize() = buildList {
         add(targetBase.name.lowercase())
+        add(targetVariables.toString())
         if (parameter != null) {
             add(parameter.toString())
         }

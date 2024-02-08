@@ -17,6 +17,8 @@ interface SyntaxTweak {
         override fun toString() = pretty
     }
 
+    val id: String? get() = null
+
     val supportedReferenceTypes: Set<ReferenceType>
 
     fun applyPackageReference(reference: PsiElement, pkg: PsiPackage, target: TweakTarget) =
