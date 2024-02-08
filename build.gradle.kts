@@ -10,7 +10,10 @@ repositories {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.9.22")
+    implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable")
+
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jvm")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jvm-host")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
 }

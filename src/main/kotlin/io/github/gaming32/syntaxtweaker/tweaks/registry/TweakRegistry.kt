@@ -1,4 +1,4 @@
-package io.github.gaming32.syntaxtweaker.tweaks.parser
+package io.github.gaming32.syntaxtweaker.tweaks.registry
 
 import io.github.gaming32.syntaxtweaker.tweaks.SyntaxTweak
 import io.github.gaming32.syntaxtweaker.tweaks.builtin.NumberBaseTweak
@@ -39,10 +39,12 @@ class TweakRegistry {
         }
         if (context.referenceType !in parsed.supportedReferenceTypes) {
             throw IllegalArgumentException(
-                "Reference type ${context.referenceType} not supported by $parsed. " +
+                "Reference type '${context.referenceType}' not supported by ${line[0]}. " +
                     "The following reference types are supported: ${parsed.supportedReferenceTypes.joinToString()}"
             )
         }
         return parsed
     }
+
+    fun copy() = TweakRegistry().also { it.registry.putAll(registry) }
 }

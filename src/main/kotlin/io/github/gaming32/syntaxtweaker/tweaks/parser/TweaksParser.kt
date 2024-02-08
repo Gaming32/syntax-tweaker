@@ -7,6 +7,8 @@ import io.github.gaming32.syntaxtweaker.tweaks.ClassTweaks
 import io.github.gaming32.syntaxtweaker.tweaks.SyntaxTweak
 import io.github.gaming32.syntaxtweaker.tweaks.TweakList
 import io.github.gaming32.syntaxtweaker.tweaks.TweakSet
+import io.github.gaming32.syntaxtweaker.tweaks.registry.TweakParser
+import io.github.gaming32.syntaxtweaker.tweaks.registry.TweakRegistry
 import io.github.gaming32.syntaxtweaker.util.plus
 import java.io.Reader
 import java.io.StringReader

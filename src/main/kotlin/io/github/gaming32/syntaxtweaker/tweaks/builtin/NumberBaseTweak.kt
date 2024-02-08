@@ -5,7 +5,7 @@ import io.github.gaming32.syntaxtweaker.data.MemberReference
 import io.github.gaming32.syntaxtweaker.data.MemberReference.Companion.toMemberReference
 import io.github.gaming32.syntaxtweaker.data.Type
 import io.github.gaming32.syntaxtweaker.tweaks.SyntaxTweak
-import io.github.gaming32.syntaxtweaker.tweaks.parser.TweakParser
+import io.github.gaming32.syntaxtweaker.tweaks.registry.TweakParser
 import org.jetbrains.kotlin.com.intellij.lang.jvm.JvmModifier
 import org.jetbrains.kotlin.com.intellij.psi.JavaRecursiveElementVisitor
 import org.jetbrains.kotlin.com.intellij.psi.JavaTokenType

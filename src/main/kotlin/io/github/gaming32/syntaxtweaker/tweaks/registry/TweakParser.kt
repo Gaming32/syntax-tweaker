@@ -1,4 +1,4 @@
-package io.github.gaming32.syntaxtweaker.tweaks.parser
+package io.github.gaming32.syntaxtweaker.tweaks.registry
 
 import io.github.gaming32.syntaxtweaker.data.MemberReference
 import io.github.gaming32.syntaxtweaker.tweaks.SyntaxTweak

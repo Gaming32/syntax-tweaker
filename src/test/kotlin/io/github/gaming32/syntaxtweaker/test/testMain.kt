@@ -6,14 +6,14 @@ import io.github.gaming32.syntaxtweaker.tweaks.ClassTweaks
 import io.github.gaming32.syntaxtweaker.tweaks.TweakSet
 import io.github.gaming32.syntaxtweaker.tweaks.builtin.NumberBaseTweak
 import io.github.gaming32.syntaxtweaker.tweaks.parser.TweaksParser
+import io.github.gaming32.syntaxtweaker.tweaks.registry.TweakRegistry
+import io.github.gaming32.syntaxtweaker.tweaks.registry.loader.TweakRegistrar.Companion.register
+import io.github.gaming32.syntaxtweaker.tweaks.registry.loader.script.ScriptTweakLoader
 import io.github.gaming32.syntaxtweaker.tweaks.writer.TweaksWriter
 import java.io.File
 import kotlin.test.assertEquals
 
 const val TWEAK_DATA = """
-flag;
-metadata = value;
-
 class io.github.gaming32.syntaxtweaker.test.TestClass {
     member int shouldBeHex {
         number-base hex true;
@@ -53,11 +53,11 @@ fun mainWriter() {
     println()
 }
 
-fun main() {
+fun mainReader() {
     TweaksWriter.writeTo(TweaksParser.parse(TWEAK_DATA), System.out)
 }
 
-fun mainNormal() {
+fun mainOriginal() {
     val tweaks = TweaksParser.parse(TWEAK_DATA)
     assertEquals(TWEAK_DATA.trimStart(), TweaksWriter.writeToString(tweaks))
 
@@ -67,4 +67,26 @@ fun mainNormal() {
     )) { _, _, newBody ->
         println(newBody)
     }
+}
+
+fun main() {
+    val registry = TweakRegistry.DEFAULT.copy()
+    ScriptTweakLoader.load("""
+        object TestTweak : SyntaxTweak, TweakParser<TestTweak> {
+            const val ID = "script-test"
+            
+            override val id get() = ID
+            
+            override val supportedReferenceTypes = emptyEnumSet<SyntaxTweak.ReferenceType>()
+            
+            override fun TweakParser.ParseContext.parse() = this@TestTweak
+        }
+        
+        register(TestTweak.ID, TestTweak)
+    """.trimIndent()).register(registry)
+    TweaksParser.parse("""
+        class io.github.gaming32.syntaxtweaker.test.TestClass {
+            script-test;
+        }
+    """.trimIndent(), registry)
 }
