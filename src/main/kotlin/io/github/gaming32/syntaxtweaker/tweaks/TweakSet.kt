@@ -12,7 +12,8 @@ import org.jetbrains.kotlin.com.intellij.psi.PsiQualifiedReferenceElement
 
 data class TweakSet(
     val packages: Map<String, TweakList>,
-    val classes: Map<String, ClassTweaks>
+    val classes: Map<String, ClassTweaks>,
+    val metadata: Map<String, String> = mapOf()
 ) : SyntaxTweak {
     companion object {
         private val SUPPORTED_REFERENCE_TYPES = fullEnumSet<SyntaxTweak.ReferenceType>()

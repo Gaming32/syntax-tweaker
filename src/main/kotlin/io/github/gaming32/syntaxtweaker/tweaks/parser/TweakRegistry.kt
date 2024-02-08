@@ -1,10 +1,11 @@
-package io.github.gaming32.syntaxtweaker.tweaks
+package io.github.gaming32.syntaxtweaker.tweaks.parser
 
+import io.github.gaming32.syntaxtweaker.tweaks.SyntaxTweak
 import io.github.gaming32.syntaxtweaker.tweaks.builtin.NumberBaseTweak
 
 class TweakRegistry {
     companion object {
-        val RESERVED_KEYS = setOf("flag", "package", "class", "field", "method")
+        val RESERVED_KEYS = setOf("member")
         val DEFAULT = TweakRegistry().apply { registerDefaults() }
 
         fun TweakRegistry.registerDefaults() {
@@ -33,8 +34,15 @@ class TweakRegistry {
         if (line.isEmpty()) {
             throw IllegalArgumentException("Tweak line cannot be empty")
         }
-        return with(registry[line[0]] ?: return null) {
+        val parsed = with(registry[line[0]] ?: return null) {
             context.copy(args = line.subList(1, line.size)).parse()
         }
+        if (context.referenceType !in parsed.supportedReferenceTypes) {
+            throw IllegalArgumentException(
+                "Reference type ${context.referenceType} not supported by $parsed. " +
+                    "The following reference types are supported: ${parsed.supportedReferenceTypes.joinToString()}"
+            )
+        }
+        return parsed
     }
 }

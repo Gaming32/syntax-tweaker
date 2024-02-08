@@ -10,7 +10,7 @@ import org.jetbrains.kotlin.com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.com.intellij.psi.PsiQualifiedReferenceElement
 import org.jetbrains.kotlin.utils.addToStdlib.enumSetOf
 
-class ClassTweaks(
+data class ClassTweaks(
     val className: String,
     val classTweaks: TweakList,
     val memberTweaks: Map<MemberReference, TweakList>

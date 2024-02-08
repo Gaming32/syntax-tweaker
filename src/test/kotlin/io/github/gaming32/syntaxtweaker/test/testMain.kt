@@ -1,33 +1,20 @@
 package io.github.gaming32.syntaxtweaker.test
 
 import io.github.gaming32.syntaxtweaker.SyntaxTweaker
-import io.github.gaming32.syntaxtweaker.data.MemberReference
-import io.github.gaming32.syntaxtweaker.tweaks.ClassTweaks
-import io.github.gaming32.syntaxtweaker.tweaks.TweakSet
-import io.github.gaming32.syntaxtweaker.tweaks.builtin.NumberBaseTweak
+import io.github.gaming32.syntaxtweaker.tweaks.parser.TweaksParser
 import java.io.File
 
+const val TWEAK_DATA = """
+class	io.github.gaming32.syntaxtweaker.test.TestClass
+	member	shouldBeHex	int
+		number-base	hex	true
+	member	shouldBeOctal	void(int)
+		number-base	oct	true	0
+"""
+
 fun main() {
-    val testClass = "io.github.gaming32.syntaxtweaker.test.TestClass"
-    val shouldBeHex = MemberReference("shouldBeHex", "int")
-    val shouldBeOctal = MemberReference("shouldBeOctal", "void(int)")
-    val tweaks = TweakSet(
-        mapOf(),
-        mapOf(
-            testClass to ClassTweaks(
-                testClass,
-                listOf(),
-                mapOf(
-                    shouldBeHex to listOf(
-                        NumberBaseTweak(shouldBeHex, NumberBaseTweak.NumberBase.HEX, true)
-                    ),
-                    shouldBeOctal to listOf(
-                        NumberBaseTweak(shouldBeOctal, NumberBaseTweak.NumberBase.OCT, true, 0)
-                    )
-                )
-            )
-        )
-    )
+    val tweaks = TweaksParser.parse(TWEAK_DATA)
+    val testClass = tweaks.classes.keys.first()
 
     SyntaxTweaker(tweaks).tweak(listOf(
         File("src/test/java/${testClass.replace('.', '/')}.java")
