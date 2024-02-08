@@ -52,13 +52,7 @@ object TweaksParser {
                         )
                     )
                 }
-                else -> {
-                    val key = parts.getOrNull(1)
-                        ?: throw InvalidTweaksException("Missing metadata key on line ${lineNo + 1}")
-                    val value = parts.getOrNull(2)
-                        ?: throw InvalidTweaksException("Missing metadata value on line ${lineNo + 1}")
-                    metadata[key] = value
-                }
+                else -> metadata[parts[0]] = parts.getOrNull(1) ?: ""
             }
         }
         return TweakSet(packages, classes, metadata)
