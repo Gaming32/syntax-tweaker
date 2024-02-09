@@ -8,8 +8,8 @@ import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.cli.jvm.compiler.NoScopeRecordCliBindingTrace
 import org.jetbrains.kotlin.cli.jvm.compiler.TopDownAnalyzerFacadeForJVM
 import org.jetbrains.kotlin.cli.jvm.compiler.setupIdeaStandaloneExecution
-import org.jetbrains.kotlin.cli.jvm.config.addJavaSourceRoots
-import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
+import org.jetbrains.kotlin.cli.jvm.config.addJavaSourceRoot
+import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoot
 import org.jetbrains.kotlin.cli.jvm.config.addJvmSdkRoots
 import org.jetbrains.kotlin.cli.jvm.modules.CoreJrtFileSystem
 import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
@@ -34,7 +34,7 @@ import java.util.*
 
 open class SyntaxTweaker(
     val tweaks: TweakSet,
-    val classpath: List<File> = defaultClasspath
+    val classpath: Iterable<File> = defaultClasspath
 ) {
     companion object {
         val defaultClasspath by lazy {
@@ -45,16 +45,18 @@ open class SyntaxTweaker(
         }
     }
 
-    fun tweak(sources: List<File>, result: (source: File, sourcePsi: PsiFile, newBody: String?) -> Unit) {
+    fun tweak(sources: Iterable<File>, result: (source: File, sourcePsi: PsiFile, newBody: String?) -> Unit) {
         val disposable = Disposer.newDisposable()
         try {
             val config = createCompilerConfiguration(sources)
 
             setupIdeaStandaloneExecution()
-            val environment = KotlinCoreEnvironment.createForProduction(disposable, config, EnvironmentConfigFiles.JVM_CONFIG_FILES)
+            val environment =
+                KotlinCoreEnvironment.createForProduction(disposable, config, EnvironmentConfigFiles.JVM_CONFIG_FILES)
             val project = environment.project
             val psiManager = PsiManager.getInstance(project)
-            val vfs = VirtualFileManager.getInstance().getFileSystem(StandardFileSystems.FILE_PROTOCOL) as CoreLocalFileSystem
+            val vfs =
+                VirtualFileManager.getInstance().getFileSystem(StandardFileSystems.FILE_PROTOCOL) as CoreLocalFileSystem
 
             TopDownAnalyzerFacadeForJVM.analyzeFilesWithJavaIntegration(
                 project, listOf(), NoScopeRecordCliBindingTrace(), config, { environment.createPackagePartProvider(it) }
@@ -75,7 +77,7 @@ open class SyntaxTweaker(
         }
     }
 
-    private fun createCompilerConfiguration(sources: List<File>): CompilerConfiguration {
+    private fun createCompilerConfiguration(sources: Iterable<File>): CompilerConfiguration {
         val config = CompilerConfiguration()
         config.put(CommonConfigurationKeys.MODULE_NAME, "main")
 
@@ -85,8 +87,8 @@ open class SyntaxTweaker(
             config.addJvmSdkRoots(PathUtil.getJdkClassesRoots(jdkHome))
         }
 
-        config.addJavaSourceRoots(sources)
-        config.addJvmClasspathRoots(classpath)
+        sources.forEach { config.addJavaSourceRoot(it) }
+        classpath.forEach(config::addJvmClasspathRoot)
 
         setupCompilerConfiguration(config)
 

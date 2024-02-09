@@ -179,7 +179,7 @@ object TweaksParser {
         }
         if (parsed == null && "skip-unknown" !in context.metadata) {
             throw InvalidTweaksException(
-                "Unknown tweak ${startToken.withPosition()}. Use skip-unknown; at the top of the file to skip.",
+                "Unknown tweak ${startToken.withPosition()}. Use skip-unknown; at the top of the file to skip it.",
                 startToken
             )
         }

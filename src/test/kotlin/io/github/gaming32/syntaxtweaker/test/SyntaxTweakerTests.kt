@@ -4,8 +4,8 @@ import io.github.gaming32.syntaxtweaker.SyntaxTweaker
 import io.github.gaming32.syntaxtweaker.tweaks.parser.InvalidTweaksException
 import io.github.gaming32.syntaxtweaker.tweaks.parser.TweaksParser
 import io.github.gaming32.syntaxtweaker.tweaks.registry.TweakRegistry
+import io.github.gaming32.syntaxtweaker.tweaks.registry.loader.ScriptTweakLoader
 import io.github.gaming32.syntaxtweaker.tweaks.registry.loader.TweakRegistrar.Companion.register
-import io.github.gaming32.syntaxtweaker.tweaks.registry.loader.script.ScriptTweakLoader
 import io.github.gaming32.syntaxtweaker.tweaks.writer.TweaksWriter
 import org.junit.jupiter.api.assertThrows
 import java.io.File

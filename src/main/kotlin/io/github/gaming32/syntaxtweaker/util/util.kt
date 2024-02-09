@@ -1,11 +1,12 @@
 package io.github.gaming32.syntaxtweaker.util
 
 import io.github.gaming32.syntaxtweaker.tweaks.ClassTweaks
+import io.github.gaming32.syntaxtweaker.tweaks.TweakSet
 import org.jetbrains.kotlin.com.intellij.openapi.util.Key
 import org.jetbrains.kotlin.com.intellij.openapi.util.UserDataHolder
-import java.io.File
 import java.io.Writer
 import java.util.*
+import kotlin.collections.plus
 import kotlin.collections.plus as plusNotNull
 
 inline fun <T : Any> UserDataHolder.getOrPutUserData(key: Key<T>, crossinline calc: () -> T?): T? {
@@ -29,9 +30,22 @@ operator fun ClassTweaks?.plus(other: ClassTweaks): ClassTweaks {
     for ((member, tweaks) in other.memberTweaks) {
         mergedMembers[member] += tweaks
     }
-    return ClassTweaks(
-        other.className, classTweaks + other.classTweaks, mergedMembers
-    )
+    return ClassTweaks(other.className, classTweaks + other.classTweaks, mergedMembers)
+}
+
+operator fun TweakSet?.plus(other: TweakSet): TweakSet {
+    if (this == null) {
+        return other
+    }
+    val mergedPackages = packages.toMutableMap()
+    for ((pkg, tweaks) in other.packages) {
+        mergedPackages[pkg] += tweaks
+    }
+    val mergedClasses = classes.toMutableMap()
+    for ((clazz, tweaks) in other.classes) {
+        mergedClasses[clazz] += tweaks
+    }
+    return TweakSet(packages, classes, metadata + other.metadata)
 }
 
 fun Appendable.asWriter() = this as? Writer ?: object : Writer() {
@@ -62,5 +76,3 @@ fun Appendable.asWriter() = this as? Writer ?: object : Writer() {
 
     override fun close() = Unit
 }
-
-operator fun File.div(path: String) = File(this, path)

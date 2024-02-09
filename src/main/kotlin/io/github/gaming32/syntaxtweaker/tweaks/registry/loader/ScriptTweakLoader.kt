@@ -1,6 +1,6 @@
-package io.github.gaming32.syntaxtweaker.tweaks.registry.loader.script
+package io.github.gaming32.syntaxtweaker.tweaks.registry.loader
 
-import io.github.gaming32.syntaxtweaker.tweaks.registry.loader.TweakLoader
+import io.github.gaming32.syntaxtweaker.tweakerscript.TweakerScriptingHost
 import java.io.File
 import java.net.URL
 import kotlin.script.experimental.api.SourceCode

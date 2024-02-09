@@ -1,9 +1,8 @@
-package io.github.gaming32.syntaxtweaker.tweaks.registry.loader.script
+package io.github.gaming32.syntaxtweaker.tweakerscript
 
 import io.github.gaming32.syntaxtweaker.TweakTarget
 import io.github.gaming32.syntaxtweaker.tweaks.SyntaxTweak
 import io.github.gaming32.syntaxtweaker.tweaks.registry.TweakParser
-import io.github.gaming32.syntaxtweaker.util.div
 import java.io.File
 import java.security.MessageDigest
 import kotlin.script.experimental.api.ScriptAcceptedLocation
@@ -47,12 +46,12 @@ object TweakerCompilationConfiguration : ScriptCompilationConfiguration({
         jvm {
             compilationCache(CompiledScriptJarsCache { source, _ ->
                 val hash = MessageDigest.getInstance("SHA-1").digest(source.text.encodeToByteArray()).toHexString()
-                (TweakerCompilationConfiguration.CACHE_ROOT / "$hash.jar").also { it.parentFile.mkdirs() }
+                TweakerCompilationConfiguration.CACHE_ROOT.resolve("$hash.jar").also { it.parentFile.mkdirs() }
             })
         }
     })
 }) {
-    private val CACHE_ROOT = File(System.getProperty("user.home")) / ".syntax-tweaker/cache/scripts"
+    private val CACHE_ROOT = File(System.getProperty("user.home")).resolve(".syntax-tweaker/cache/scripts")
 
     private fun readResolve(): Any = this
 }

@@ -14,8 +14,9 @@ class TweakRegistry {
     }
 
     private val registry = mutableMapOf<String, TweakParser<*>>()
+    var defaultReplace = false
 
-    fun register(key: String, parser: TweakParser<*>, replace: Boolean = false) {
+    fun register(key: String, parser: TweakParser<*>, replace: Boolean = defaultReplace) {
         if (key in RESERVED_KEYS) {
             throw IllegalArgumentException("Reserved tweak key: $key")
         }
@@ -46,5 +47,8 @@ class TweakRegistry {
         return parsed
     }
 
-    fun copy() = TweakRegistry().also { it.registry.putAll(registry) }
+    fun copy() = TweakRegistry().also {
+        it.registry.putAll(registry)
+        it.defaultReplace = defaultReplace
+    }
 }

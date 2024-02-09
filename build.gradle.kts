@@ -15,6 +15,8 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-scripting-jvm")
     implementation("org.jetbrains.kotlin:kotlin-scripting-jvm-host")
 
+    implementation("net.sourceforge.argparse4j:argparse4j:0.9.0")
+
     testImplementation("org.jetbrains.kotlin:kotlin-test")
 }
 
