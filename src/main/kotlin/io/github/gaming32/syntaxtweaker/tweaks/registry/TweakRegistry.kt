@@ -31,16 +31,16 @@ class TweakRegistry {
 
     val keys: Set<String> get() = registry.keys
 
-    fun parseLine(context: TweakParser.ParseContext, line: List<String>): SyntaxTweak? {
-        if (line.isEmpty()) {
+    fun parse(context: TweakParser.ParseContext, args: List<String>, namedArgs: Map<String, String>): SyntaxTweak? {
+        if (args.isEmpty()) {
             throw IllegalArgumentException("Tweak line cannot be empty")
         }
-        val parsed = with(registry[line[0]] ?: return null) {
-            context.copy(args = line.subList(1, line.size)).parse()
+        val parsed = with(registry[args[0]] ?: return null) {
+            context.copy(args = args.subList(1, args.size), namedArgs = namedArgs).parse()
         }
         if (context.referenceType !in parsed.supportedReferenceTypes) {
             throw IllegalArgumentException(
-                "Reference type '${context.referenceType}' not supported by ${line[0]}. " +
+                "Reference type '${context.referenceType}' not supported by ${args[0]}. " +
                     "The following reference types are supported: ${parsed.supportedReferenceTypes.joinToString()}"
             )
         }

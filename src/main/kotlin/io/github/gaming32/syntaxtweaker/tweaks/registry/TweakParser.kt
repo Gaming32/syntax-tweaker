@@ -9,7 +9,8 @@ fun interface TweakParser<T : SyntaxTweak> {
         val referenceType: SyntaxTweak.ReferenceType,
         val owner: String,
         val member: MemberReference?,
-        val args: List<String> = listOf()
+        val args: List<String> = listOf(),
+        val namedArgs: Map<String, String> = mapOf()
     ) {
         init {
             require(member == null || referenceType == member.referenceType) {

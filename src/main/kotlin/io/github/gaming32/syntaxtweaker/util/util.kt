@@ -7,6 +7,7 @@ import org.jetbrains.kotlin.com.intellij.openapi.util.UserDataHolder
 import java.io.Writer
 import java.util.*
 import kotlin.collections.plus
+import kotlin.script.experimental.api.KotlinType
 import kotlin.collections.plus as plusNotNull
 
 inline fun <T : Any> UserDataHolder.getOrPutUserData(key: Key<T>, crossinline calc: () -> T?): T? {
@@ -75,4 +76,26 @@ fun Appendable.asWriter() = this as? Writer ?: object : Writer() {
     override fun flush() = Unit
 
     override fun close() = Unit
+}
+
+private val stableToStringCache = Collections.synchronizedMap(WeakHashMap<Class<*>, Boolean>())
+
+fun Any?.stableToString(): String = when (this) {
+    null -> "null"
+    is String -> this
+    is Collection<*> -> joinToString(", ", "[", "]") { it.stableToString() }
+    is Map<*, *> -> entries.joinToString(", ", "{", "}") {
+        "${it.key.stableToString()}: ${it.value.stableToString()}"
+    }
+    is KotlinType -> typeName
+    else -> {
+        val isStable = stableToStringCache.computeIfAbsent(javaClass) { clazz ->
+            clazz.getMethod("toString") != Any::class.java.getMethod("toString")
+        }
+        if (isStable) {
+            toString()
+        } else {
+            "Instance of $javaClass"
+        }
+    }
 }

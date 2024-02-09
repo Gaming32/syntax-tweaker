@@ -33,7 +33,9 @@ interface SyntaxTweak {
     fun applyMethodReference(reference: PsiQualifiedReferenceElement, method: PsiMethod, target: TweakTarget) =
         notImplemented(ReferenceType.METHOD)
 
-    fun serialize(): List<String> = listOf()
+    fun serializeArgs(): List<String> = listOf()
+
+    fun serializeNamedArgs(): Map<String, String> = mapOf()
 
     private fun notImplemented(type: ReferenceType) {
         if (type !in supportedReferenceTypes) {

@@ -143,8 +143,11 @@ object TweaksWriter {
             append(indent)
         }
         writeString(id)
-        for (arg in tweak.serialize()) {
+        for (arg in tweak.serializeArgs()) {
             append(' ').writeString(arg)
+        }
+        for ((key, value) in tweak.serializeNamedArgs()) {
+            append(' ').writeString(key).append('=').writeString(value)
         }
         return if (indent != null) {
             appendLine(';')

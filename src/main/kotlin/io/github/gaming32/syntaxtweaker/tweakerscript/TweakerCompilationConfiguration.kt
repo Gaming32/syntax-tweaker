@@ -3,10 +3,12 @@ package io.github.gaming32.syntaxtweaker.tweakerscript
 import io.github.gaming32.syntaxtweaker.TweakTarget
 import io.github.gaming32.syntaxtweaker.tweaks.SyntaxTweak
 import io.github.gaming32.syntaxtweaker.tweaks.registry.TweakParser
+import io.github.gaming32.syntaxtweaker.util.stableToString
 import java.io.File
 import java.security.MessageDigest
 import kotlin.script.experimental.api.ScriptAcceptedLocation
 import kotlin.script.experimental.api.ScriptCompilationConfiguration
+import kotlin.script.experimental.api.SourceCode
 import kotlin.script.experimental.api.acceptedLocations
 import kotlin.script.experimental.api.baseClass
 import kotlin.script.experimental.api.defaultImports
@@ -20,7 +22,6 @@ import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.jvmTarget
 import kotlin.script.experimental.jvmhost.CompiledScriptJarsCache
 
-@OptIn(ExperimentalStdlibApi::class)
 object TweakerCompilationConfiguration : ScriptCompilationConfiguration({
     defaultImports(TweakTarget::class, SyntaxTweak::class, TweakParser::class)
     defaultImports(
@@ -44,14 +45,26 @@ object TweakerCompilationConfiguration : ScriptCompilationConfiguration({
 
     hostConfiguration(ScriptingHostConfiguration(defaultJvmScriptingHostConfiguration) {
         jvm {
-            compilationCache(CompiledScriptJarsCache { source, _ ->
-                val hash = MessageDigest.getInstance("SHA-1").digest(source.text.encodeToByteArray()).toHexString()
-                TweakerCompilationConfiguration.CACHE_ROOT.resolve("$hash.jar").also { it.parentFile.mkdirs() }
+            compilationCache(CompiledScriptJarsCache { source, config ->
+                CACHE_ROOT.resolve("${hashScript(source, config)}.jar").also { it.parentFile.mkdirs() }
             })
         }
     })
 }) {
-    private val CACHE_ROOT = File(System.getProperty("user.home")).resolve(".syntax-tweaker/cache/scripts")
-
     private fun readResolve(): Any = this
+}
+
+private val CACHE_ROOT = File(System.getProperty("user.home")).resolve(".syntax-tweaker/cache/scripts")
+
+@OptIn(ExperimentalStdlibApi::class)
+private fun hashScript(source: SourceCode, config: ScriptCompilationConfiguration): String {
+    val digest = MessageDigest.getInstance("SHA-1")
+    digest.update(source.text.encodeToByteArray())
+    config.notTransientData.entries
+        .sortedBy { it.key.name }
+        .forEach { (key, value) ->
+            digest.update(key.name.encodeToByteArray())
+            digest.update(value.stableToString().encodeToByteArray())
+        }
+    return digest.digest().toHexString()
 }

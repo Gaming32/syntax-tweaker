@@ -162,18 +162,33 @@ object TweaksParser {
         tokens: Iterator<Token>, startToken: StringToken, registry: TweakRegistry, context: TweakParser.ParseContext
     ): SyntaxTweak? {
         val args = mutableListOf(startToken.value)
+        val namedArgs = mutableMapOf<String, String>()
+        var hasPutInNamed = true // Prevent startToken from becoming a named arg
+        var lastKey = startToken
         while (true) {
             val token = tokens.expect()
             if (token is SimpleToken) {
+                if (token.type == SimpleTokenType.EQUALS && !hasPutInNamed) {
+                    val value = tokens.expectString("named arg value")
+                    val key = args.removeLast()
+                    val oldValue = namedArgs.putIfAbsent(key, value.value)
+                    if (oldValue != null) {
+                        throw InvalidTweaksException("Duplicate named arg ${lastKey.withPosition()}", lastKey)
+                    }
+                    hasPutInNamed = true
+                    continue
+                }
                 if (token.type != SimpleTokenType.SEMI) {
                     throw InvalidTweaksException("Expected ; to end tweak args, found ${token.withPosition()}", token)
                 }
                 break
             }
-            args.add((token as StringToken).value)
+            lastKey = token as StringToken
+            args.add(token.value)
+            hasPutInNamed = false
         }
         val parsed = try {
-            registry.parseLine(context, args)
+            registry.parse(context, args, namedArgs)
         } catch (e: IllegalArgumentException) {
             throw InvalidTweaksException("Invalid tweak ${args[0]} at ${startToken.positionString}: ${e.localizedMessage}", startToken, e)
         }

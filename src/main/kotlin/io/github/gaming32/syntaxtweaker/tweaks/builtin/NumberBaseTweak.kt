@@ -29,8 +29,8 @@ import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 class NumberBaseTweak(
     val member: MemberReference,
     val targetBase: NumberBase,
-    val targetVariables: Boolean,
-    val parameter: Int? = null
+    val parameter: Int? = null,
+    val targetVariables: Boolean = DEFAULT_TARGET_VARIABLES,
 ) : SyntaxTweak {
     enum class NumberBase(val prefix: String, val altPrefix: String?, val radix: Int, val useMinus: Boolean) {
         HEX("0x", "0X", 16, false),
@@ -42,6 +42,8 @@ class NumberBaseTweak(
     companion object : TweakParser<NumberBaseTweak> {
         const val ID = "number-base"
 
+        private const val DEFAULT_TARGET_VARIABLES = true
+
         private val SUPPORTED_REFERENCE_TYPES = enumSetOf(
             SyntaxTweak.ReferenceType.FIELD,
             SyntaxTweak.ReferenceType.METHOD
@@ -52,17 +54,13 @@ class NumberBaseTweak(
                 throw IllegalArgumentException("Missing targetBase")
             }
             val targetBase = NumberBase.valueOf(args[0].uppercase())
-            if (args.size < 2) {
-                throw IllegalArgumentException("Missing targetVariables")
-            }
-            val targetVariables = args[1].toBooleanStrict()
             val parameter = when (referenceType) {
                 SyntaxTweak.ReferenceType.FIELD -> null
                 SyntaxTweak.ReferenceType.METHOD -> {
-                    if (args.size < 3) {
+                    if (args.size < 2) {
                         throw IllegalArgumentException("Parameter index required when targeting a method")
                     }
-                    args[2].toInt()
+                    args[1].toInt()
                 }
                 else -> throw IllegalArgumentException("Only applicable to members")
             }
@@ -72,7 +70,10 @@ class NumberBaseTweak(
                     "Parameter $parameter out of bounds for ${member.type}"
                 )
             }
-            return NumberBaseTweak(member, targetBase, targetVariables, parameter)
+            return NumberBaseTweak(
+                member, targetBase, parameter,
+                targetVariables = namedArgs["targetVariables"]?.toBooleanStrict() ?: DEFAULT_TARGET_VARIABLES
+            )
         }
     }
 
@@ -175,11 +176,12 @@ class NumberBaseTweak(
         }
     }
 
-    override fun serialize() = buildList {
+    override fun serializeArgs() = buildList {
         add(targetBase.name.lowercase())
-        add(targetVariables.toString())
         if (parameter != null) {
             add(parameter.toString())
         }
     }
+
+    override fun serializeNamedArgs() = mapOf("targetVariables" to targetVariables.toString())
 }
